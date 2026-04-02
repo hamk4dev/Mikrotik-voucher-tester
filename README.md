@@ -2,13 +2,16 @@
 
 Utilities for validating voucher-based authentication on MikroTik HotSpot portals and preparing voucher batches for controlled operational or laboratory use.
 
-![Application Screenshot](images/screenshot.png)
-
 ## Overview
 
 This repository is built around a practical testing workflow for MikroTik HotSpot environments that still expose the familiar CHAP or JavaScript MD5 login pattern. The main tester retrieves the portal page, identifies the authentication form, reconstructs the challenge response when CHAP data is available, falls back to PAP when it is not, and evaluates the outcome from redirects, response content, and the final location returned by the server.
 
 Alongside the tester, the project includes an optional LLM-assisted diagnostic helper for failed runs and a separate voucher generator intended for batch preparation.
+
+<p align="center">
+  <img src="images/screenshot.png" alt="Main tester interface" width="760">
+</p>
+<p align="center"><em>Main tester interface</em></p>
 
 ## Project Structure
 
