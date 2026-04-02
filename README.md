@@ -1,48 +1,50 @@
 # MikroTik HotSpot Voucher Tester
 
-Python command-line tools for testing MikroTik HotSpot voucher login pages and generating voucher batches.
+Utilities for validating voucher-based authentication on MikroTik HotSpot portals and preparing voucher batches for controlled operational or laboratory use.
 
-This repository currently contains:
+![Application Screenshot](images/screenshot.png)
 
-- `mikrotik_jsmd5_loginv2.py`: tests MikroTik HotSpot logins that use the JavaScript MD5 / CHAP flow
-- `llm_debug.py`: optional OpenAI-based failure analysis for saved logs or failed login attempts
-- `Voucher-generator/vgen.py`: standalone voucher generator for batch creation
+## Overview
 
-## Scope
+This repository is built around a practical testing workflow for MikroTik HotSpot environments that still expose the familiar CHAP or JavaScript MD5 login pattern. The main tester retrieves the portal page, identifies the authentication form, reconstructs the challenge response when CHAP data is available, falls back to PAP when it is not, and evaluates the outcome from redirects, response content, and the final location returned by the server.
 
-The tester is designed for captive portals that behave like standard MikroTik login pages:
+Alongside the tester, the project includes an optional LLM-assisted diagnostic helper for failed runs and a separate voucher generator intended for batch preparation.
 
-- fetch the login form
-- extract the form action and challenge data
-- calculate the MD5 response for CHAP-based login
-- fall back to PAP if CHAP data is not available
-- evaluate the result using redirect history, response content, and final URL
+## Project Structure
 
-Portal templates vary. This tool works best when the target login page still follows common MikroTik field names and request flow.
+| Path | Role |
+| --- | --- |
+| `mikrotik_jsmd5_loginv2.py` | Main command-line tester for single vouchers and wordlists |
+| `llm_debug.py` | Optional OpenAI-backed diagnostic helper for saved files or failed attempts |
+| `Voucher-generator/vgen.py` | Standalone voucher generator for batch creation |
+| `tests/` | Regression tests for parsing, success detection, and LLM helper behavior |
 
-## Features
+## Functional Scope
 
-- Single voucher testing
-- Wordlist-based testing
-- CHAP challenge extraction from JavaScript and hidden form fields
-- PAP fallback when CHAP is unavailable
-- Verbose request and response logging
-- Summary report output
-- Optional AI-assisted analysis for failed attempts or saved HTML / log files
+| Area | Description |
+| --- | --- |
+| Voucher testing | Supports both single-value checks and bulk execution from a wordlist |
+| CHAP handling | Extracts challenge data from JavaScript fragments and hidden input fields |
+| PAP fallback | Continues with plain credential submission when CHAP material is unavailable |
+| Result evaluation | Inspects redirect history, response body, and final URL before classifying the result |
+| Diagnostic output | Provides verbose request and response logging for troubleshooting |
+| Assisted analysis | Offers optional AI-based review of failed runs or stored debug material |
 
-## Requirements
+## Runtime Requirements
 
-- Python 3.8 or newer
-- `requests` for the tester
-- `openai` only if you want to use the optional LLM analysis mode
+| Requirement | Purpose |
+| --- | --- |
+| Python 3.8 or newer | Base runtime |
+| `requests` | HTTP communication for the tester |
+| `openai` | Optional dependency for the LLM helper |
 
-Install everything with:
+To install the full environment:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-If you do not need the LLM feature, this is enough:
+If only the tester is required:
 
 ```bash
 pip install requests
@@ -50,82 +52,97 @@ pip install requests
 
 ## Usage
 
-### Test a single voucher
+### Single Voucher Validation
 
 ```bash
 python mikrotik_jsmd5_loginv2.py -u http://192.168.88.1 --voucher TEST123
 ```
 
-### Test a wordlist
+### Wordlist Execution
 
 ```bash
 python mikrotik_jsmd5_loginv2.py -u http://192.168.88.1 -w vouchers.txt -o report.txt
 ```
 
-### Verbose mode
+### Verbose Troubleshooting
 
 ```bash
 python mikrotik_jsmd5_loginv2.py -u hotspot.local -w vouchers.txt -v
 ```
 
-### Analyze the last failed attempt with OpenAI
+### Post-Failure Analysis with the Optional LLM Helper
 
-Set `OPENAI_API_KEY` first, then run:
+After setting `OPENAI_API_KEY`:
 
 ```bash
 python mikrotik_jsmd5_loginv2.py -u hotspot.local -w vouchers.txt -v --llm-debug
 ```
 
-### Analyze a saved file with OpenAI
+### Analysis of a Saved HTML or Log File
 
 ```bash
 python mikrotik_jsmd5_loginv2.py --analyze-file failed_login.html
 ```
 
-## Main Options
+## Command Reference
 
-- `-u, --url`: target portal URL or hostname
-- `--voucher`: test a single voucher
-- `-w, --wordlist`: test multiple vouchers from a file
-- `-t, --timeout`: HTTP timeout in seconds
-- `-d, --delay`: delay between attempts
-- `-o, --output`: save the summary report to a file
-- `-v, --verbose`: print detailed request and response information
-- `--no-progress`: disable the progress display
-- `--llm-debug`: send the last failed attempt to the optional LLM analyzer
-- `--analyze-file`: analyze a saved HTML or log file with the optional LLM analyzer
-- `--analyze-model`: choose the OpenAI model used by the analyzer
+| Option | Meaning |
+| --- | --- |
+| `-u`, `--url` | Target portal URL or hostname |
+| `--voucher` | Single voucher input |
+| `-w`, `--wordlist` | File containing multiple voucher values |
+| `-t`, `--timeout` | HTTP timeout in seconds |
+| `-d`, `--delay` | Delay between attempts |
+| `-o`, `--output` | File path for the generated summary |
+| `-v`, `--verbose` | Detailed request and response output |
+| `--no-progress` | Disables the progress display |
+| `--llm-debug` | Sends the most recent failed attempt to the optional analyzer |
+| `--analyze-file` | Analyzes a stored HTML or log file and exits |
+| `--analyze-model` | Selects the OpenAI model used by the analyzer |
 
-Run `python mikrotik_jsmd5_loginv2.py --help` for the full CLI reference.
+For the complete CLI reference:
 
-## Notes on the LLM Analyzer
+```bash
+python mikrotik_jsmd5_loginv2.py --help
+```
 
-The AI-assisted debug mode is optional and off by default.
+## Authentication Workflow
 
-- it requires the `openai` package
-- it requires `OPENAI_API_KEY`
-- it masks voucher and request values before building the analysis payload
-- it does not change the voucher testing flow; it only adds diagnosis after a failed run or for a saved file
+| Stage | Operation |
+| --- | --- |
+| 1 | Request the login page from the target portal |
+| 2 | Detect the form action and any available challenge material |
+| 3 | Compute the MD5 response when CHAP data is present |
+| 4 | Submit the voucher using CHAP or PAP as required |
+| 5 | Interpret the response from redirects, content, and final destination |
+
+## Optional LLM Diagnostics
+
+The diagnostic helper is intentionally separate from the authentication flow. It is invoked only when explicitly requested, either after a failed run or when a saved file is passed for review. Before building the analysis payload, the helper masks voucher values and request details so the context remains suitable for diagnostic use.
+
+| Condition | Requirement |
+| --- | --- |
+| Dependency | `openai` package must be installed |
+| Credential | `OPENAI_API_KEY` must be available in the environment |
+| Behavior | Analysis is additive; it does not modify the tester workflow |
 
 ## Voucher Generator
 
-The repository also includes a separate generator in `Voucher-generator/vgen.py`.
+The voucher generator in `Voucher-generator/vgen.py` is a separate utility. Its role is to prepare voucher batches for staging, testing, or operational distribution, and it can be used independently of the login tester.
 
-Use it if you need to create batch voucher data for lab or operational workflows. It is independent from the tester.
+## Operational Considerations
 
-## Limitations
-
-- success detection is heuristic, not authoritative
-- some portals use custom JavaScript or non-standard field names
-- some captive portals require additional cookies or intermediate redirects
-- the LLM analyzer can help narrow down failures, but it cannot replace packet capture or direct router-side inspection
+| Topic | Detail |
+| --- | --- |
+| Result confidence | Success detection is heuristic and should not be treated as router-side truth |
+| Portal variation | Customized templates may use non-standard fields or altered JavaScript flows |
+| Session handling | Some deployments require cookies, intermediate redirects, or additional portal state |
+| AI assistance | The LLM helper can accelerate diagnosis, but it does not replace router logs, packet capture, or server-side inspection |
 
 ## Legal and Ethical Use
 
-Use this tool only on systems you own or are explicitly authorized to test.
-
-Do not use it against third-party networks, captive portals, or customer infrastructure without written permission.
+Use this project only against systems that you own or are explicitly authorized to assess. Testing third-party captive portals or production infrastructure without written permission is outside the intended use of this repository.
 
 ## License
 
-This project is distributed under the MIT License. See [LICENSE](LICENSE).
+This project is released under the MIT License. See [LICENSE](LICENSE) for the full text.
